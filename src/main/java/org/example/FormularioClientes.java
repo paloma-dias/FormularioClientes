@@ -10,7 +10,7 @@ import java.util.List;
 public class FormularioClientes extends JFrame {
     private JTextField txtNome, txtEmail;
     private JTextArea areaClientes;
-    private List<Cliente> clientes = new ArrayList<>();
+    //private List<Cliente> clientes = new ArrayList<>();
     private Connection connection;
     private JButton btnDeletar;
 
@@ -20,7 +20,15 @@ public class FormularioClientes extends JFrame {
         setSize(400, 400);
         setLayout(new BorderLayout());
 
-        inicializarBancoDados();
+        // Inicializando o banco de dados
+        try {
+            inicializarBancoDados();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this,
+                    "Erro ao inicializar o banco de dados: " + ex.getMessage(),
+                    "Erro", JOptionPane.ERROR_MESSAGE);
+            System.exit(1);
+        }
 
         // Painel do formulário
         JPanel painelForm = new JPanel(new GridLayout(3, 2));
@@ -45,6 +53,7 @@ public class FormularioClientes extends JFrame {
         // Área para exibir clientes
         areaClientes = new JTextArea();
         areaClientes.setEditable(false);
+        // Selecionar o texto para habilitar o delete
         areaClientes.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -68,12 +77,12 @@ public class FormularioClientes extends JFrame {
     private void deletarCliente() {
         try{
             String texto = areaClientes.getSelectedText();
-            if (texto != null) return;
+            if (texto == null) return;
 
             String email = texto.split("\\(")[1].replace(")", "").trim();
 
             int confirm = JOptionPane.showConfirmDialog(this,
-                    "Deseja realmente deletar este cliente?", "Confirmação",
+                    "Funcionaaaaa pelo amor de deussss", "AAAAAAAAAAA",
                     JOptionPane.YES_NO_OPTION);
 
             if (confirm == JOptionPane.YES_OPTION) {
@@ -83,18 +92,18 @@ public class FormularioClientes extends JFrame {
                     int rowsAffected = stmt.executeUpdate();
 
                     if (rowsAffected > 0) {
-                        JOptionPane.showMessageDialog(this, "Cliente deletado com sucesso!");
+                        JOptionPane.showMessageDialog(this, "O cliente FINALMENTE FOI DELETADO NESSA MERDAAAA!");
                         carregarClientesBanco();
                     }
                 }
             }
         } catch (SQLException ex) {
             JOptionPane.showMessageDialog(this,
-                    "Erro ao deletar cliente: " + ex.getMessage(),
+                    "Erro ao deletar: " + ex.getMessage(),
                     "Erro", JOptionPane.ERROR_MESSAGE);
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this,
-                    "Selecione um cliente válido na lista",
+                    "Selecione um cliente na lista",
                     "Aviso", JOptionPane.WARNING_MESSAGE);
         }
     }
@@ -129,20 +138,22 @@ public class FormularioClientes extends JFrame {
                 throw new IllegalArgumentException("Preencha todos os campos.");
             }
 
-            // Insere no banco de dados
-            String sql = "INSERT INTO clientes (nome, email) VALUES (?, ?)";
-            try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-                stmt.setString(1, nome);
-                stmt.setString(2, email);
-                stmt.executeUpdate();
-
-            }
-
+            salvarClienteNoBanco(nome, email);
             carregarClientesBanco();
             limparCampos();
 
-        } catch (IllegalArgumentException ex) {
+        }catch (IllegalArgumentException ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage(), "Aviso", JOptionPane.WARNING_MESSAGE);
+        } catch (SQLException ex) {
+            if (ex.getMessage().contains("UNIQUE constraint failed")) {
+                JOptionPane.showMessageDialog(this,
+                        "Email já cadastrado",
+                        "Erro", JOptionPane.ERROR_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this,
+                        "Erro: " + ex.getMessage(),
+                        "Erro", JOptionPane.ERROR_MESSAGE);
+            }
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this,
                     "Erro: " + ex.getMessage(),
@@ -150,35 +161,52 @@ public class FormularioClientes extends JFrame {
         }
     }
 
+    private void salvarClienteNoBanco(String nome, String email) throws SQLException {
+        String sql = "INSERT INTO clientes (nome, email) VALUES (?, ?)";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, nome);
+            stmt.setString(2, email);
+            stmt.executeUpdate();
+            JOptionPane.showMessageDialog(this, "as vezes p sucesso e nem tentar!");
+        }
+    }
+
     private void carregarClientesBanco() {
         try {
-            clientes.clear();
+            //clientes.clear();
+            StringBuilder sb = new StringBuilder();
             String sql = "SELECT nome, email FROM clientes";
+
             try (Statement stmt = connection.createStatement();
                  ResultSet rs = stmt.executeQuery(sql)) {
 
                 while (rs.next()) {
                     String nome = rs.getString("nome");
                     String email = rs.getString("email");
-                    clientes.add(new Cliente(nome, email));
+                    //clientes.add(new Cliente(nome, email));
+                    sb.append(nome).append(" (").append(email).append(")\n");
                 }
             }
-            atualizarLista();
+            //atualizarLista();
+
+            areaClientes.setText(sb.toString());
+            btnDeletar.setEnabled(false);
+
         } catch (SQLException ex) {
             JOptionPane.showMessageDialog(this,
-                    "Erro ao carregar clientes: " + ex.getMessage(),
+                    "Erro ao carregar: " + ex.getMessage(),
                     "Erro", JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    private void atualizarLista() {
+    /*private void atualizarLista() {
         StringBuilder sb = new StringBuilder();
         for (Cliente c : clientes) {
             sb.append(c).append("\n");
         }
         areaClientes.setText(sb.toString());
         btnDeletar.setEnabled(false);
-    }
+    }*/
 
     private void limparCampos() {
         txtNome.setText("");
@@ -203,19 +231,4 @@ public class FormularioClientes extends JFrame {
     }
 }
 
-// Classe auxiliar para representar o cliente
-class Cliente {
-    private String nome;
-    private String email;
-
-    public Cliente(String nome, String email) {
-        this.nome = nome;
-        this.email = email;
-    }
-
-    @Override
-    public String toString() {
-        return nome + " (" + email + ")";
-    }
-}
 
